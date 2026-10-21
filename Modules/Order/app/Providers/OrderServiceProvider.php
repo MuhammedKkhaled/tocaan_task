@@ -2,7 +2,10 @@
 
 namespace Modules\Order\Providers;
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Modules\Order\Models\Order;
+use Modules\Order\Policies\OrderPolicy;
 
 class OrderServiceProvider extends ServiceProvider
 {
@@ -11,6 +14,11 @@ class OrderServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+    }
+
+    public function boot(): void
+    {
+        Gate::policy(Order::class, OrderPolicy::class);
     }
 
     /**

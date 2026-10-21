@@ -2,7 +2,10 @@
 
 namespace Modules\Payment\Providers;
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Modules\Payment\Models\Payment;
+use Modules\Payment\Policies\PaymentPolicy;
 
 class PaymentServiceProvider extends ServiceProvider
 {
@@ -11,6 +14,11 @@ class PaymentServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+    }
+
+    public function boot(): void
+    {
+        Gate::policy(Payment::class, PaymentPolicy::class);
     }
 
     /**

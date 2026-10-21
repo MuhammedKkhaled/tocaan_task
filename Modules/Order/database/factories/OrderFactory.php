@@ -5,6 +5,7 @@ namespace Modules\Order\Database\Factories;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Core\Enums\Currency;
+use Modules\Core\Support\ReferenceGenerator;
 use Modules\Order\Enums\OrderStatus;
 use Modules\Order\Models\Order;
 
@@ -23,11 +24,7 @@ class OrderFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'number' => sprintf(
-                'ORD-%s-%s',
-                now()->format('Ymd'),
-                strtoupper(fake()->unique()->bothify('??##')),
-            ),
+            'number' => (new ReferenceGenerator())->orderNumber(),
             'status' => OrderStatus::Pending,
             'total_amount' => fake()->randomFloat(2, 10, 5000),
             'currency' => Currency::USD,

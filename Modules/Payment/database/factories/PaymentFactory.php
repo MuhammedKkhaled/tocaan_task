@@ -4,6 +4,7 @@ namespace Modules\Payment\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Core\Enums\Currency;
+use Modules\Core\Support\ReferenceGenerator;
 use Modules\Order\Models\Order;
 use Modules\Payment\Enums\PaymentMethod;
 use Modules\Payment\Enums\PaymentStatus;
@@ -24,7 +25,7 @@ class PaymentFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
-            'reference' => fake()->unique()->uuid(),
+            'reference' => (new ReferenceGenerator())->paymentReference(),
             'method' => fake()->randomElement(PaymentMethod::cases()),
             'status' => PaymentStatus::Pending,
             'amount' => fake()->randomFloat(2, 10, 5000),
