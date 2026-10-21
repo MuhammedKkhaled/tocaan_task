@@ -51,6 +51,16 @@ Thank you for considering contributing to the Laravel framework! The contributio
 - Orders are created as `pending` and may be confirmed or cancelled through `PATCH /api/orders/{order}/status`.
 - Order details and items may only be changed while the order is pending.
 - Successful deletes return HTTP 200 with the standard JSON message envelope because HTTP 204 responses cannot contain a body.
+- Only confirmed orders may be paid. Failed attempts may be retried, while a successful payment prevents another charge.
+- Successful payments return HTTP 201; declined payments are recorded and returned with HTTP 402.
+
+## Adding a Payment Gateway
+
+1. Create a gateway class in `Modules/Payment/app/Gateways` implementing `PaymentGatewayInterface`.
+2. Add its value to `PaymentMethod`.
+3. Add its driver and environment-backed credentials to `Modules/Payment/config/payment.php` and `.env.example`.
+
+Controllers, services, and validation require no changes because gateway selection is config-driven.
 
 ## Code of Conduct
 
