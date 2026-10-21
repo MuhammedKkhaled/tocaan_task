@@ -1,0 +1,12 @@
+{
+    "name": "modules/core",
+    "description": "Shared application infrastructure",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Core\\": "app/",
+            "Modules\\Core\\Database\\Factories\\": "database/factories/",
+            "Modules\\Core\\Database\\Seeders\\": "database/seeders/"
+        }
+    }
+}
