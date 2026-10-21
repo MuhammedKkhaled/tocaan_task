@@ -46,6 +46,12 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
+## API Assumptions
+
+- Orders are created as `pending` and may be confirmed or cancelled through `PATCH /api/orders/{order}/status`.
+- Order details and items may only be changed while the order is pending.
+- Successful deletes return HTTP 200 with the standard JSON message envelope because HTTP 204 responses cannot contain a body.
+
 ## Code of Conduct
 
 In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
