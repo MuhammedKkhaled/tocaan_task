@@ -22,4 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
-/docs
+/docs/*
+!/docs/api.json
+!/docs/postman_collection.json
+!/docs/postman_environment.json

@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
-use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Eloquent\Model;
@@ -36,8 +35,12 @@ class AppServiceProvider extends ServiceProvider
         $this->logSlowQueries();
         $this->configureRateLimiting();
 
-        Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
-            $openApi->secure(SecurityScheme::http('bearer', 'JWT'));
+        Scramble::afterOpenApiGenerated(function (OpenApi $openApi): void {
+            foreach ($openApi->paths as $path) {
+                if ($path->path === 'auth/refresh' && isset($path->operations['post'])) {
+                    $path->operations['post']->security = null;
+                }
+            }
         });
     }
 

@@ -2,11 +2,18 @@
 
 namespace Modules\Payment\Http\Requests;
 
+use Dedoc\Scramble\Attributes\BodyParameter;
 use Illuminate\Validation\Rule;
 use Modules\Core\Http\Requests\BaseFormRequest;
 use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
 
+#[BodyParameter(
+    'payload.simulate_outcome',
+    description: 'Controls the deterministic simulated gateway result.',
+    type: "'success'|'declined'",
+    example: 'success',
+)]
 class ProcessPaymentRequest extends BaseFormRequest
 {
     /** @return array<string, mixed> */

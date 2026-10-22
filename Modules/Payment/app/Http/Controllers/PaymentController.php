@@ -2,8 +2,11 @@
 
 namespace Modules\Payment\Http\Controllers;
 
+use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\Response as ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Modules\Core\Http\Controllers\BaseApiController;
+use Modules\Core\Http\Documentation\ApiErrorResponse;
 use Modules\Order\Models\Order;
 use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
@@ -16,6 +19,7 @@ use Modules\Payment\Models\Payment;
 use Modules\Payment\Services\PaymentService;
 use Symfony\Component\HttpFoundation\Response;
 
+#[Group('Payments')]
 class PaymentController extends BaseApiController
 {
     public function __construct(
@@ -23,6 +27,15 @@ class PaymentController extends BaseApiController
     ) {
     }
 
+    /** Process a simulated payment for a confirmed order. */
+    #[ApiResponse(status: 201, description: 'Payment processed', type: 'array{message: string, data: PaymentResource}', examples: [['message' => 'Payment processed successfully.', 'data' => []]])]
+    #[ApiResponse(status: 402, description: 'Payment declined', type: 'array{message: string, data: PaymentResource}', examples: [['message' => 'The payment was declined.', 'data' => []]])]
+    #[ApiErrorResponse(401)]
+    #[ApiErrorResponse(403)]
+    #[ApiErrorResponse(404)]
+    #[ApiErrorResponse(409)]
+    #[ApiErrorResponse(422)]
+    #[ApiErrorResponse(429)]
     public function process(ProcessPaymentRequest $request, Order $order): JsonResponse
     {
         $this->authorize('view', $order);
@@ -49,6 +62,13 @@ class PaymentController extends BaseApiController
         );
     }
 
+    /** List payments for one order. */
+    #[ApiResponse(description: 'Payments retrieved', type: 'array{message: string, data: list<PaymentResource>, meta: array<string, mixed>}', examples: [['message' => 'Payments retrieved successfully.', 'data' => [], 'meta' => ['items_Per_Page' => 15, 'Items_in_page' => 0, 'next_cursor' => null, 'previous_cursor' => null, 'next_pageUrl' => null, 'previous_pageUrl' => null]]])]
+    #[ApiErrorResponse(401)]
+    #[ApiErrorResponse(403)]
+    #[ApiErrorResponse(404)]
+    #[ApiErrorResponse(422)]
+    #[ApiErrorResponse(429)]
     public function forOrder(ListOrderPaymentsRequest $request, Order $order): JsonResponse
     {
         $this->authorize('view', $order);
@@ -59,6 +79,12 @@ class PaymentController extends BaseApiController
             ->toResponse();
     }
 
+    /** List the authenticated user's payments. */
+    #[ApiResponse(description: 'Payments retrieved', type: 'array{message: string, data: list<PaymentResource>, meta: array<string, mixed>}', examples: [['message' => 'Payments retrieved successfully.', 'data' => [], 'meta' => ['items_Per_Page' => 15, 'Items_in_page' => 0, 'next_cursor' => null, 'previous_cursor' => null, 'next_pageUrl' => null, 'previous_pageUrl' => null]]])]
+    #[ApiErrorResponse(401)]
+    #[ApiErrorResponse(403)]
+    #[ApiErrorResponse(422)]
+    #[ApiErrorResponse(429)]
     public function index(ListPaymentsRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Payment::class);
@@ -69,6 +95,12 @@ class PaymentController extends BaseApiController
             ->toResponse();
     }
 
+    /** Retrieve one payment. */
+    #[ApiResponse(description: 'Payment retrieved', type: 'array{message: string, data: PaymentResource}', examples: [['message' => 'Payment retrieved successfully.', 'data' => []]])]
+    #[ApiErrorResponse(401)]
+    #[ApiErrorResponse(403)]
+    #[ApiErrorResponse(404)]
+    #[ApiErrorResponse(429)]
     public function show(Payment $payment): JsonResponse
     {
         $this->authorize('view', $payment);
