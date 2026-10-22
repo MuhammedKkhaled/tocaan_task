@@ -57,6 +57,15 @@ it('rejects unsupported gateway and method combinations', function (
     'Paymob PayPal' => ['paymob', 'paypal'],
 ]);
 
+it('rejects a missing gateway configuration', function (): void {
+    config()->set('payment.gateways.kashier', null);
+
+    expect(fn () => app(PaymentGatewayManager::class)->resolve(
+        PaymentGateway::Kashier,
+        PaymentMethod::CreditCard,
+    ))->toThrow(\LogicException::class, 'Missing gateway configuration for kashier.');
+});
+
 it('simulates deterministic gateway outcomes', function (
     string $gateway,
     string $method,

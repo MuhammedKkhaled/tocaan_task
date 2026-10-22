@@ -17,6 +17,10 @@
     <source>
         <include>
             <directory>app</directory>
+            <directory>Modules/Auth/app</directory>
+            <directory>Modules/Core/app</directory>
+            <directory>Modules/Order/app</directory>
+            <directory>Modules/Payment/app</directory>
         </include>
     </source>
     <php>

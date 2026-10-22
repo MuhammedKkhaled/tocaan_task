@@ -1,77 +1,110 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Order Payment API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel 12 modular API for user authentication, orders, and simulated payments. It uses JWT authentication, Form Requests, unified JSON responses, cursor pagination, and a gateway strategy that keeps payment providers separate from payment methods.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- JWT registration, login, refresh, logout, and current-user endpoints.
+- Orders with calculated totals, status transitions, ownership policies, and cursor pagination.
+- Simulated Kashier, Paymob, and MyFatoorah gateway strategies.
+- Configurable gateway/method matrix, with no controller, service, or schema change required when adding a gateway.
+- Scramble OpenAPI documentation and a ready-to-import Postman collection.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.4+, Composer, Node.js, and npm.
+- PHP extensions: `bcmath`, `pdo_sqlite`/`sqlite3`, `mbstring`, `xml`/`dom`, `curl`, `openssl`, and `fileinfo`.
+- Redis plus the PHP Redis extension when using the default local cache configuration.
 
-## Learning Laravel
+`bcmath` is required because order prices and totals are decimal money values. Its string arithmetic prevents floating-point rounding errors when calculating item subtotals and order totals.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Setup
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan jwt:secret
+php artisan migrate --seed
+npm install
+npm run build
+composer dev
+```
 
-## Laravel Sponsors
+Use `php artisan serve` and `npm run dev` instead of `composer dev` when you only need the HTTP server and Vite separately.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Environment configuration
 
-### Premium Partners
+Set these values in `.env` before running the API:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+| Setting | Purpose |
+| --- | --- |
+| `APP_KEY`, `APP_URL`, `APP_ENV` | Laravel encryption and application URL/environment. |
+| `DB_CONNECTION` plus `DB_DATABASE` (and host/user/password for MySQL) | Application database. SQLite may use `database/database.sqlite`. |
+| `JWT_SECRET` | Required to sign and verify bearer tokens; generate it with `php artisan jwt:secret`. |
+| `CACHE_STORE=redis`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PORT` | Required by the default payment lock configuration. |
+| `SESSION_DRIVER` and `QUEUE_CONNECTION` | The example uses database-backed sessions and queues, so run migrations. |
 
-## Contributing
+Tests use an in-memory SQLite database and the array cache store through `phpunit.xml`. Ensure both `pdo_sqlite` and `sqlite3` are enabled in the PHP CLI used by Composer/Pest. Redis is not needed for tests. For coverage, install and enable Xdebug or PCOV.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Modules
 
-## API Assumptions
+| Module | Responsibility |
+| --- | --- |
+| `Modules/Core` | Base repository, enums, references, unified API controller, and base request. |
+| `Modules/Auth` | User repository, JWT service, authentication requests, resources, and routes. |
+| `Modules/Order` | Orders, items, status rules, policies, repository, and service. |
+| `Modules/Payment` | Payments, simulated gateways, support matrix, policies, repository, and service. |
 
-- Orders are created as `pending` and may be confirmed or cancelled through `PATCH /api/orders/{order}/status`.
-- Order details and items may only be changed while the order is pending.
-- Successful deletes return HTTP 200 with the standard JSON message envelope because HTTP 204 responses cannot contain a body.
-- Only confirmed orders may be paid. Failed attempts may be retried, while a successful payment prevents another charge.
-- Successful payments return HTTP 201; declined payments are recorded and returned with HTTP 402.
-- Payment gateways (`kashier`, `paymob`, `myfatoorah`) and payment methods (`credit_card`, `apple_pay`, `paypal`) are stored separately.
-- Gateway behavior is simulated. `payload.simulate_outcome` accepts `success` or `declined` and defaults to `success`.
+## Response format
 
-## Adding a Payment Gateway
+Successful responses contain a message and optional `data`; validation and business errors contain `message` and `error`. Cursor listings also return `meta` with `next_cursor`, `previous_cursor`, page URLs, and item counts.
 
-1. Add its value to `PaymentGateway`.
-2. Create a gateway class in `Modules/Payment/app/Gateways` extending `SimulatedGateway`.
-3. Add its driver and supported payment methods to `Modules/Payment/config/payment.php`.
+```json
+{"message":"Order created successfully.","data":{"id":1}}
+```
 
-For example, adding HyperPay requires a `HyperPay = 'hyperpay'` enum case, a `HyperPayGateway` class, and a `hyperpay` configuration entry. Controllers, services, requests, resources, and the database schema require no changes.
+```json
+{"message":"The given data was invalid.","error":{"items":["An order must contain at least one item."]}}
+```
 
-## Code of Conduct
+## Creating data for manual testing
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Do not insert orders or order items directly when testing the API: the order service calculates totals and maintains item records.
 
-## Security Vulnerabilities
+1. `POST /api/auth/register` or `POST /api/auth/login`, then send `Authorization: Bearer <token>` on protected requests. `php artisan migrate --seed` creates `test@example.com` with password `password`.
+2. `POST /api/orders` with at least one item. Each item needs `product_name`, `quantity`, and a positive `price` with at most two decimal places.
+3. Read the returned order ID, then confirm it with `PATCH /api/orders/{order}/status` and `{ "status": "confirmed" }`.
+4. Process it through `POST /api/orders/{order}/payments`, for example `{ "gateway": "paymob", "method": "apple_pay", "payload": { "simulate_outcome": "success" } }`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Adding a payment gateway
 
-## License
+1. Add a case to `Modules/Payment/app/Enums/PaymentGateway.php`.
+2. Add a class under `Modules/Payment/app/Gateways` that extends `SimulatedGateway` and returns that enum case.
+3. Register the driver and supported methods in `Modules/Payment/config/payment.php`.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+For example, `HyperPay = 'hyperpay'` plus `HyperPayGateway extends SimulatedGateway` and a `hyperpay` configuration entry makes the provider available without changing requests, controllers, services, resources, or migrations.
+
+## Documentation and quality checks
+
+- Interactive API docs: `http://localhost:8000/docs/api`
+- OpenAPI export: [docs/api.json](docs/api.json)
+- Postman collection: [docs/postman_collection.json](docs/postman_collection.json)
+- Postman environment: [docs/postman_environment.json](docs/postman_environment.json)
+
+```bash
+composer test
+./vendor/bin/pest --parallel
+./vendor/bin/pint --test
+./vendor/bin/pest --coverage --min=80
+```
+
+## Notes and assumptions
+
+- Gateways are simulations only. No real provider credentials, SDK calls, webhooks, redirects, or settlement reconciliation are included because full payment integration is outside this task’s scope. The purpose is provider extensibility and deterministic API behavior.
+- The API currently has one version and uses the `/api` prefix. API versioning is intentionally not implemented; introduce a `/api/v1` route group before a breaking public API change.
+- Orders start as `pending`; only pending orders can be edited. A confirmed order may be cancelled but cannot return to pending.
+- Only confirmed orders can be paid. Failed payments may be retried; a successful payment prevents another successful charge for the same order.
+- A declined payment returns HTTP `402` and is stored as `failed`. Successful deletion returns HTTP `200`, not `204`, to retain the JSON response envelope.
+- API routes are rate-limited to 10 requests per minute; authentication routes to 5 requests per minute.
+- Telescope and Scramble’s documentation UI are local-development tools by default. Configure their authorization before exposing them outside a trusted environment.

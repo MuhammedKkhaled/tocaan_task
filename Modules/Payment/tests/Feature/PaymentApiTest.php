@@ -23,16 +23,18 @@ it('processes and persists separate gateway and method values', function (): voi
     $user = User::factory()->create();
     $order = paymentConfirmedOrderFor($user);
 
-    $this->actingAs($user, 'api')
+    $response = $this->actingAs($user, 'api')
         ->postJson("/api/orders/{$order->id}/payments", [
             'gateway' => PaymentGateway::Paymob->value,
             'method' => PaymentMethod::ApplePay->value,
-        ])
-        ->assertCreated()
+        ]);
+
+    $response->assertCreated()
         ->assertJsonPath('data.gateway', 'paymob')
         ->assertJsonPath('data.method', 'apple_pay')
         ->assertJsonPath('data.status', 'successful')
         ->assertJsonPath('data.amount', '25.00');
+    expect($response)->toBeSuccessEnvelope();
 
     $this->assertDatabaseHas('payments', [
         'order_id' => $order->id,
@@ -47,19 +49,22 @@ it('records a decline and allows a successful retry', function (): void {
     $order = paymentConfirmedOrderFor($user);
     $this->actingAs($user, 'api');
 
-    $this->postJson("/api/orders/{$order->id}/payments", [
+    $declined = $this->postJson("/api/orders/{$order->id}/payments", [
         'gateway' => 'kashier',
         'method' => 'credit_card',
         'payload' => ['simulate_outcome' => 'declined'],
-    ])->assertPaymentRequired()
+    ]);
+    $declined->assertPaymentRequired()
         ->assertJsonPath('data.status', 'failed')
         ->assertJsonPath('data.gateway_response.simulated', true);
+    expect($declined)->toBeSuccessEnvelope();
 
-    $this->postJson("/api/orders/{$order->id}/payments", [
+    $successful = $this->postJson("/api/orders/{$order->id}/payments", [
         'gateway' => 'myfatoorah',
         'method' => 'paypal',
-    ])->assertCreated()
-        ->assertJsonPath('data.status', 'successful');
+    ]);
+    $successful->assertCreated()->assertJsonPath('data.status', 'successful');
+    expect($successful)->toBeSuccessEnvelope();
 
     expect($order->payments()->where('status', PaymentStatus::Failed->value)->count())->toBe(1)
         ->and($order->payments()->where('status', PaymentStatus::Successful->value)->count())->toBe(1);
@@ -69,16 +74,17 @@ it('rejects an unsupported gateway and method combination', function (): void {
     $user = User::factory()->create();
     $order = paymentConfirmedOrderFor($user);
 
-    $this->actingAs($user, 'api')
+    $response = $this->actingAs($user, 'api')
         ->postJson("/api/orders/{$order->id}/payments", [
             'gateway' => 'kashier',
             'method' => 'apple_pay',
-        ])
-        ->assertUnprocessable()
+        ]);
+    $response->assertUnprocessable()
         ->assertJsonPath(
             'message',
             "The payment method 'apple_pay' is not supported by gateway 'kashier'.",
         );
+    expect($response)->toBeErrorEnvelope();
 
     expect($order->payments()->count())->toBe(0);
 });
@@ -90,23 +96,29 @@ it('prevents another successful payment for the same order', function (): void {
 
     $payload = ['gateway' => 'kashier', 'method' => 'credit_card'];
 
-    $this->postJson("/api/orders/{$order->id}/payments", $payload)->assertCreated();
-    $this->postJson("/api/orders/{$order->id}/payments", $payload)
+    $successful = $this->postJson("/api/orders/{$order->id}/payments", $payload);
+    $successful->assertCreated();
+    expect($successful)->toBeSuccessEnvelope();
+
+    $duplicate = $this->postJson("/api/orders/{$order->id}/payments", $payload);
+    $duplicate
         ->assertConflict()
         ->assertJsonPath('message', 'This order has already been paid.');
+    expect($duplicate)->toBeErrorEnvelope();
 });
 
 it('rejects payment for a pending order', function (): void {
     $user = User::factory()->create();
     $order = Order::factory()->for($user)->create();
 
-    $this->actingAs($user, 'api')
+    $response = $this->actingAs($user, 'api')
         ->postJson("/api/orders/{$order->id}/payments", [
             'gateway' => 'kashier',
             'method' => 'credit_card',
-        ])
-        ->assertUnprocessable()
+        ]);
+    $response->assertUnprocessable()
         ->assertJsonPath('message', 'Order must be confirmed before payment.');
+    expect($response)->toBeErrorEnvelope();
 });
 
 it('validates gateway method payload and simulation outcome', function (
@@ -116,10 +128,12 @@ it('validates gateway method payload and simulation outcome', function (
     $user = User::factory()->create();
     $order = paymentConfirmedOrderFor($user);
 
-    $this->actingAs($user, 'api')
-        ->postJson("/api/orders/{$order->id}/payments", $payload)
+    $response = $this->actingAs($user, 'api')
+        ->postJson("/api/orders/{$order->id}/payments", $payload);
+    $response
         ->assertUnprocessable()
         ->assertJsonPath('message', $message);
+    expect($response)->toBeErrorEnvelope();
 })->with([
     'gateway' => [
         ['gateway' => 'unknown', 'method' => 'credit_card'],
@@ -148,9 +162,9 @@ it('prevents users from viewing another users payment', function (): void {
     $otherUser = User::factory()->create();
     $payment = Payment::factory()->for(paymentConfirmedOrderFor($owner))->create();
 
-    $this->actingAs($otherUser, 'api')
-        ->getJson("/api/payments/{$payment->id}")
-        ->assertForbidden();
+    $response = $this->actingAs($otherUser, 'api')->getJson("/api/payments/{$payment->id}");
+    $response->assertForbidden();
+    expect($response)->toBeErrorEnvelope();
 });
 
 it('filters and cursor paginates the current users payments', function (): void {
@@ -164,15 +178,31 @@ it('filters and cursor paginates the current users payments', function (): void 
     $firstPage = $this->actingAs($user, 'api')
         ->getJson('/api/payments?status=successful&per_page=1')
         ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->json();
+        ->assertJsonCount(1, 'data');
+    expect($firstPage)->toBeSuccessEnvelope();
+    $firstPageJson = $firstPage->json();
 
-    expect($firstPage['meta']['next_cursor'])->not->toBeNull();
+    expect($firstPageJson['meta']['next_cursor'])->not->toBeNull();
 
-    $this->getJson('/api/payments?status=successful&per_page=1&cursor='.
-        urlencode($firstPage['meta']['next_cursor']))
+    $secondPage = $this->getJson('/api/payments?status=successful&per_page=1&cursor='.
+        urlencode($firstPageJson['meta']['next_cursor']));
+    $secondPage
         ->assertOk()
         ->assertJsonCount(1, 'data');
+    expect($secondPage)->toBeSuccessEnvelope();
+});
+
+it('lists payments for an owned order', function (): void {
+    $user = User::factory()->create();
+    $order = paymentConfirmedOrderFor($user);
+    Payment::factory()->for($order)->count(2)->create();
+
+    $response = $this->actingAs($user, 'api')
+        ->getJson("/api/orders/{$order->id}/payments?per_page=1");
+
+    $response->assertOk()->assertJsonCount(1, 'data');
+    expect($response)->toBeSuccessEnvelope()
+        ->and($response->json('meta.next_cursor'))->not->toBeNull();
 });
 
 it('returns a conflict when the payment lock times out', function (): void {
