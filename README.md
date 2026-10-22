@@ -53,14 +53,16 @@ Thank you for considering contributing to the Laravel framework! The contributio
 - Successful deletes return HTTP 200 with the standard JSON message envelope because HTTP 204 responses cannot contain a body.
 - Only confirmed orders may be paid. Failed attempts may be retried, while a successful payment prevents another charge.
 - Successful payments return HTTP 201; declined payments are recorded and returned with HTTP 402.
+- Payment gateways (`kashier`, `paymob`, `myfatoorah`) and payment methods (`credit_card`, `apple_pay`, `paypal`) are stored separately.
+- Gateway behavior is simulated. `payload.simulate_outcome` accepts `success` or `declined` and defaults to `success`.
 
 ## Adding a Payment Gateway
 
-1. Create a gateway class in `Modules/Payment/app/Gateways` implementing `PaymentGatewayInterface`.
-2. Add its value to `PaymentMethod`.
-3. Add its driver and environment-backed credentials to `Modules/Payment/config/payment.php` and `.env.example`.
+1. Add its value to `PaymentGateway`.
+2. Create a gateway class in `Modules/Payment/app/Gateways` extending `SimulatedGateway`.
+3. Add its driver and supported payment methods to `Modules/Payment/config/payment.php`.
 
-Controllers, services, and validation require no changes because gateway selection is config-driven.
+For example, adding HyperPay requires a `HyperPay = 'hyperpay'` enum case, a `HyperPayGateway` class, and a `hyperpay` configuration entry. Controllers, services, requests, resources, and the database schema require no changes.
 
 ## Code of Conduct
 

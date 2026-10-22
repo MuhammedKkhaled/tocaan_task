@@ -1,23 +1,28 @@
 <?php
 
-use Modules\Payment\Gateways\CreditCardGateway;
-use Modules\Payment\Gateways\PaypalGateway;
+use Modules\Payment\Enums\PaymentMethod;
+use Modules\Payment\Gateways\KashierGateway;
+use Modules\Payment\Gateways\MyFatoorahGateway;
+use Modules\Payment\Gateways\PaymobGateway;
 
 return [
-    'default' => env('PAYMENT_DEFAULT_GATEWAY', 'credit_card'),
-
     'gateways' => [
-        'credit_card' => [
-            'driver' => CreditCardGateway::class,
-            'api_key' => env('CREDIT_CARD_API_KEY'),
-            'secret' => env('CREDIT_CARD_SECRET'),
-            'sandbox' => env('CREDIT_CARD_SANDBOX', true),
+        'kashier' => [
+            'driver' => KashierGateway::class,
+            'methods' => [
+                PaymentMethod::CreditCard->value,
+            ],
         ],
-        'paypal' => [
-            'driver' => PaypalGateway::class,
-            'client_id' => env('PAYPAL_CLIENT_ID'),
-            'secret' => env('PAYPAL_SECRET'),
-            'sandbox' => env('PAYPAL_SANDBOX', true),
+        'paymob' => [
+            'driver' => PaymobGateway::class,
+            'methods' => [
+                PaymentMethod::CreditCard->value,
+                PaymentMethod::ApplePay->value,
+            ],
+        ],
+        'myfatoorah' => [
+            'driver' => MyFatoorahGateway::class,
+            'methods' => PaymentMethod::values(),
         ],
     ],
 ];

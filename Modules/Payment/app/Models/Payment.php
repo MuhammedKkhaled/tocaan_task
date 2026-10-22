@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Core\Enums\Currency;
 use Modules\Order\Models\Order;
 use Modules\Payment\Database\Factories\PaymentFactory;
+use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
 use Modules\Payment\Enums\PaymentStatus;
 
@@ -21,6 +22,7 @@ class Payment extends Model
     protected $fillable = [
         'order_id',
         'reference',
+        'gateway',
         'method',
         'status',
         'amount',
@@ -34,6 +36,7 @@ class Payment extends Model
     protected function casts(): array
     {
         return [
+            'gateway' => PaymentGateway::class,
             'method' => PaymentMethod::class,
             'status' => PaymentStatus::class,
             'amount' => 'decimal:2',

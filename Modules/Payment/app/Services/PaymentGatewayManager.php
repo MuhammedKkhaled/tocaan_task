@@ -5,6 +5,7 @@ namespace Modules\Payment\Services;
 use Illuminate\Contracts\Container\Container;
 use LogicException;
 use Modules\Payment\Contracts\PaymentGatewayInterface;
+use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
 use Modules\Payment\Exceptions\UnsupportedPaymentMethodException;
 
@@ -15,20 +16,24 @@ final class PaymentGatewayManager
     ) {
     }
 
-    public function resolve(PaymentMethod $method): PaymentGatewayInterface
+    public function resolve(PaymentGateway $gateway, PaymentMethod $method): PaymentGatewayInterface
     {
-        $config = config("payment.gateways.{$method->value}");
+        $config = config("payment.gateways.{$gateway->value}");
 
         if (! is_array($config) || ! isset($config['driver'])) {
-            throw new UnsupportedPaymentMethodException($method->value);
+            throw new LogicException("Missing gateway configuration for {$gateway->value}.");
         }
 
-        $gateway = $this->container->make($config['driver'], ['config' => $config]);
+        $driver = $this->container->make($config['driver'], ['config' => $config]);
 
-        if (! $gateway instanceof PaymentGatewayInterface || $gateway->method() !== $method) {
-            throw new LogicException("Invalid gateway configuration for {$method->value}.");
+        if (! $driver instanceof PaymentGatewayInterface || $driver->gateway() !== $gateway) {
+            throw new LogicException("Invalid gateway configuration for {$gateway->value}.");
         }
 
-        return $gateway;
+        if (! $driver->supports($method)) {
+            throw new UnsupportedPaymentMethodException($gateway, $method);
+        }
+
+        return $driver;
     }
 }

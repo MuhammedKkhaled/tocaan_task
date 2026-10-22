@@ -5,6 +5,7 @@ namespace Modules\Payment\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Modules\Core\Http\Controllers\BaseApiController;
 use Modules\Order\Models\Order;
+use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
 use Modules\Payment\Enums\PaymentStatus;
 use Modules\Payment\Http\Requests\ListOrderPaymentsRequest;
@@ -28,6 +29,7 @@ class PaymentController extends BaseApiController
         $validated = $request->validated();
         $payment = $this->payments->process(
             $order,
+            PaymentGateway::from($validated['gateway']),
             PaymentMethod::from($validated['method']),
             $validated['payload'] ?? [],
         );

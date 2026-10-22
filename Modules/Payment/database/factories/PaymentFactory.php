@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Core\Enums\Currency;
 use Modules\Core\Support\ReferenceGenerator;
 use Modules\Order\Models\Order;
+use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
 use Modules\Payment\Enums\PaymentStatus;
 use Modules\Payment\Models\Payment;
@@ -23,10 +24,18 @@ class PaymentFactory extends Factory
      */
     public function definition(): array
     {
+        $gateway = fake()->randomElement(PaymentGateway::cases());
+        $method = fake()->randomElement(match ($gateway) {
+            PaymentGateway::Kashier => [PaymentMethod::CreditCard],
+            PaymentGateway::Paymob => [PaymentMethod::CreditCard, PaymentMethod::ApplePay],
+            PaymentGateway::MyFatoorah => PaymentMethod::cases(),
+        });
+
         return [
             'order_id' => Order::factory(),
             'reference' => (new ReferenceGenerator())->paymentReference(),
-            'method' => fake()->randomElement(PaymentMethod::cases()),
+            'gateway' => $gateway,
+            'method' => $method,
             'status' => PaymentStatus::Pending,
             'amount' => fake()->randomFloat(2, 10, 5000),
             'currency' => Currency::USD,

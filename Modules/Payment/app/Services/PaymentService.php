@@ -12,6 +12,7 @@ use Modules\Order\Contracts\OrderRepositoryInterface;
 use Modules\Order\Enums\OrderStatus;
 use Modules\Order\Models\Order;
 use Modules\Payment\Contracts\PaymentRepositoryInterface;
+use Modules\Payment\Enums\PaymentGateway;
 use Modules\Payment\Enums\PaymentMethod;
 use Modules\Payment\Enums\PaymentStatus;
 use Modules\Payment\Exceptions\OrderAlreadyPaidException;
@@ -30,12 +31,18 @@ class PaymentService
     }
 
     /** @param array<string, mixed> $payload */
-    public function process(Order $order, PaymentMethod $method, array $payload = []): Payment
-    {
+    public function process(
+        Order $order,
+        PaymentGateway $gateway,
+        PaymentMethod $method,
+        array $payload = [],
+    ): Payment {
+        $driver = $this->gateways->resolve($gateway, $method);
+
         try {
             return Cache::lock("order-payment:{$order->getKey()}", 10)->block(
                 5,
-                fn (): Payment => DB::transaction(function () use ($order, $method, $payload): Payment {
+                fn (): Payment => DB::transaction(function () use ($order, $gateway, $method, $payload, $driver): Payment {
                     $order = $this->orders->lock($order);
 
                     if ($order->status !== OrderStatus::Confirmed) {
@@ -48,13 +55,14 @@ class PaymentService
 
                     $payment = $this->payments->createForOrder($order, [
                         'reference' => $this->references->paymentReference(),
+                        'gateway' => $gateway,
                         'method' => $method,
                         'status' => PaymentStatus::Pending,
                         'amount' => $order->total_amount,
                         'currency' => $order->currency,
                     ]);
 
-                    $result = $this->gateways->resolve($method)->charge($payment, $payload);
+                    $result = $driver->charge($payment, $method, $payload);
 
                     return $this->payments->updatePayment($payment, [
                         'status' => $result->successful
@@ -93,5 +101,4 @@ class PaymentService
 
         return $this->payments->listForUser($user, $status, $filters['per_page'] ?? 15);
     }
-
 }

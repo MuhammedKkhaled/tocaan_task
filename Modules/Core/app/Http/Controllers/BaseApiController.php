@@ -85,7 +85,12 @@ class BaseApiController extends Controller
 
     public function toResponse(): JsonResponse
     {
-        return response()->json($this->response, $this->statusCode);
+        $response = response()->json($this->response, $this->statusCode);
+
+        $this->response = [];
+        $this->statusCode = Response::HTTP_OK;
+
+        return $response;
     }
 
     public function successResponse(
